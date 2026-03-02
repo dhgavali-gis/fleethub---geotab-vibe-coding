@@ -114,6 +114,22 @@ Once the server is running, full API documentation (Swagger UI) is available at:
 
 <img width="7255" height="4057" alt="Project Idea to Deployment-2026-03-02-230424" src="https://github.com/user-attachments/assets/e51e36c3-95df-4da8-b6c5-6d3f38c92a1c" />
 
+##Output
+
+#1. Agentic Chatbot - Google Gemini + GMP MCP + Geotab Ace 
+<img width="1468" height="838" alt="Screenshot 2026-03-03 at 4 39 35 AM" src="https://github.com/user-attachments/assets/3fcfa3d9-9d59-4a23-8c3b-f8560c8f2e4c" />
+
+#2. Dashboard with AI summary & Insights
+<img width="1470" height="835" alt="Screenshot 2026-03-03 at 4 40 48 AM" src="https://github.com/user-attachments/assets/90557755-bf5d-4cee-953f-da8fe802f99a" />
+<img width="1469" height="836" alt="Screenshot 2026-03-03 at 4 43 00 AM" src="https://github.com/user-attachments/assets/3072a09a-9673-4cb6-b457-57aa16d8a64a" />
+
+
+#3. Historical Tracking: Addons - Planned route rendering + delivery locations 
+<img width="1466" height="773" alt="Screenshot 2026-03-03 at 4 45 43 AM" src="https://github.com/user-attachments/assets/e585af40-18b0-466b-bf00-6f3edcfd013c" />
+
+<img width="1468" height="837" alt="Screenshot 2026-03-03 at 4 46 01 AM" src="https://github.com/user-attachments/assets/891063dd-df3c-4eae-bf27-4bcc13c3acd7" />
+
+
 
 
 ## 🛡️ License
