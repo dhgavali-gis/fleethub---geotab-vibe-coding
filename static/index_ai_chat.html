@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geotab Fleet Intelligence Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chat-bubble { max-width: 80%; border-radius: 1rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
+        .user-bubble { background-color: #2563eb; color: white; align-self: flex-end; border-bottom-right-radius: 0.25rem; }
+        .ai-bubble { background-color: #f3f4f6; color: #1f2937; align-self: flex-start; border-bottom-left-radius: 0.25rem; }
+        .typing-indicator span {
+            display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out both; margin: 0 2px;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        /* Markdown Styles */
+        .prose h1 { font-size: 1.5em; font-weight: bold; margin-top: 0.5em; margin-bottom: 0.5em; }
+        .prose h2 { font-size: 1.25em; font-weight: bold; margin-top: 0.5em; margin-bottom: 0.5em; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 0.5em; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 0.5em; }
+        .prose p { margin-bottom: 0.5em; }
+        .prose strong { font-weight: 600; }
+        .prose code { background-color: #e5e7eb; padding: 0.1em 0.3em; border-radius: 0.2em; font-family: monospace; font-size: 0.9em; }
+        .prose pre { background-color: #1f2937; color: #f3f4f6; padding: 1em; border-radius: 0.5em; overflow-x: auto; margin-bottom: 0.5em; }
+        .prose pre code { background-color: transparent; padding: 0; color: inherit; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <i data-lucide="truck" class="text-white w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Fleet Intelligence Hub</h1>
+                <p class="text-xs text-gray-500">Powered by Geotab Ace & Gemini</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200">
+                <span class="relative flex h-2.5 w-2.5">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                </span>
+                MCP Mode Active
+            </div>
+            <button onclick="resetChat()" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Clear history and reset AI context">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Clear Chat
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Chat Area -->
+        <div class="flex-1 flex flex-col bg-white relative">
+            <!-- Messages Container -->
+            <div id="chat-container" class="flex-1 overflow-y-auto p-6 flex flex-col gap-2 scroll-smooth">
+                <!-- Welcome Message -->
+                <div class="ai-bubble chat-bubble shadow-sm border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="bg-blue-100 p-1 rounded">
+                            <i data-lucide="bot" class="w-4 h-4 text-blue-600"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-gray-500">AI Assistant</span>
+                    </div>
+                    <div class="prose text-sm text-gray-800">
+                        Hello! I am your AI Fleet Assistant. I can analyze safety, track vehicles, and check traffic conditions. How can I help?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 border-t border-gray-200 bg-gray-50">
+                <div class="max-w-4xl mx-auto relative">
+                    <form id="chat-form" class="flex gap-3" onsubmit="handleChat(event)">
+                        <input 
+                            type="text" 
+                            id="user-input" 
+                            class="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm text-gray-700 placeholder-gray-400"
+                            placeholder="Ask about fleet safety, vehicle status, or traffic..."
+                            autocomplete="off"
+                        >
+                        <button 
+                            type="submit" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            id="send-btn"
+                        >
+                            <span>Send</span>
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </form>
+                    <p class="text-xs text-center text-gray-400 mt-2">
+                        AI can make mistakes. Please verify important information.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        async function handleChat(e) {
+            e.preventDefault();
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Add User Message
+            appendMessage('user', message);
+            userInput.value = '';
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Show Typing Indicator
+            const typingId = showTyping();
+
+            try {
+                const response = await fetch('/api/mcp/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                // Remove Typing Indicator
+                removeMessage(typingId);
+
+                // Add AI Response
+                appendMessage('ai', data.response);
+
+            } catch (error) {
+                removeMessage(typingId);
+                appendMessage('ai', "Sorry, I encountered an error. Please try again.");
+                console.error('Chat Error:', error);
+            } finally {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        async function resetChat() {
+            if (!confirm("Are you sure you want to clear the chat history? This will reset the AI's memory of this conversation.")) return;
+
+            try {
+                // Call backend to reset session
+                await fetch('/api/mcp/reset', { method: 'POST' });
+                
+                // Clear UI
+                chatContainer.innerHTML = `
+                    <div class="ai-bubble chat-bubble shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="bg-blue-100 p-1 rounded">
+                                <i data-lucide="bot" class="w-4 h-4 text-blue-600"></i>
+                            </div>
+                            <span class="text-xs font-semibold text-gray-500">AI Assistant</span>
+                        </div>
+                        <div class="prose text-sm text-gray-800">
+                            Chat history cleared. I'm ready for a fresh start! How can I help you?
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+            } catch (error) {
+                console.error("Reset failed:", error);
+                alert("Failed to reset chat session.");
+            }
+        }
+
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `${role === 'user' ? 'user-bubble' : 'ai-bubble'} chat-bubble shadow-sm border ${role === 'ai' ? 'border-gray-100' : 'border-blue-600'}`;
+            
+            let contentHtml = '';
+            if (role === 'ai') {
+                // Header for AI
+                contentHtml += `
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="bg-blue-100 p-1 rounded">
+                            <i data-lucide="bot" class="w-4 h-4 text-blue-600"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-gray-500">AI Assistant</span>
+                    </div>
+                `;
+                // Parse Markdown
+                contentHtml += `<div class="prose text-sm text-gray-800">${marked.parse(text)}</div>`;
+            } else {
+                contentHtml = `<div class="text-sm">${text}</div>`;
+            }
+
+            div.innerHTML = contentHtml;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            if (role === 'ai') lucide.createIcons();
+        }
+
+        function showTyping() {
+            const id = 'typing-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'ai-bubble chat-bubble shadow-sm border border-gray-100 w-16';
+            div.innerHTML = `
+                <div class="typing-indicator flex justify-center items-center h-6">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return id;
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+    </script>
+</body>
+</html>

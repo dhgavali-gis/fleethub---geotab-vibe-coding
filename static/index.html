@@ -1,0 +1,2592 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Intelligence Hub</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Removed - Header Added */
+        #top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            box-sizing: border-box;
+            z-index: 2000;
+            transition: all 0.3s ease;
+        }
+
+        .brand {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 5px;
+        }
+
+        .nav-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: #2c3e50;
+        }
+
+        .nav-item.active {
+            background-color: #eef2f7;
+            color: #3498db;
+        }
+
+        .badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .badge.beta {
+            background: #e74c3c;
+        }
+
+        .badge.alpha {
+            background: #8e44ad;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            color: #2c3e50;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Floating Stats Widget */
+        .floating-card {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 12px 20px;
+            z-index: 1500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        #live-stats-widget {
+            top: 84px;
+            /* 64px header + 20px gap */
+            left: 20px;
+        }
+
+
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-divider {
+            width: 1px;
+            height: 24px;
+            background: #eee;
+        }
+
+        /* Main Content Adjustment */
+        #content {
+            position: absolute;
+            top: 64px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Geek Black Theme */
+        body.geek-black #map {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+
+        /* Un-invert markers and popups */
+        body.geek-black .leaflet-marker-icon,
+        body.geek-black .leaflet-popup,
+        body.geek-black .leaflet-tooltip {
+            filter: invert(100%) hue-rotate(180deg);
+        }
+
+        /* Dark UI Theme */
+        body.geek-black #top-nav,
+        body.geek-black .floating-card,
+        body.geek-black .map-controls,
+        body.geek-black #legend,
+        body.geek-black #mcp-panel {
+            background: rgba(15, 23, 42, 0.85);
+            color: #ecf0f1;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body.geek-black .brand,
+        body.geek-black .nav-item,
+        body.geek-black .theme-toggle {
+            color: #ecf0f1;
+        }
+
+        body.geek-black .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        body.geek-black .nav-item.active {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+
+        body.geek-black .stat-label {
+            color: #bdc3c7;
+        }
+
+        body.geek-black .stat-divider {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* MCP Panel Overlay */
+        #mcp-panel {
+            position: absolute !important;
+            top: 74px !important;
+            /* Closer to top (64px header + 10px gap) */
+            left: 20px !important;
+            bottom: 20px !important;
+            /* Reserve bottom space */
+            height: auto !important;
+            /* Fill space between top and bottom */
+            width: 380px !important;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.65) !important;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            z-index: 1600;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* MCP Logs Overlay (Top-Right, Minimalist) */
+        #mcp-logs-panel {
+            position: absolute !important;
+            top: 10px !important;
+            right: 20px !important;
+            width: 320px !important;
+            max-height: 65vh;
+            /* Limit height */
+            z-index: 1600;
+            overflow-y: auto;
+            /* Scrollable */
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: transparent !important;
+            /* No container background */
+            box-shadow: none !important;
+            border: none !important;
+            pointer-events: none;
+            /* Let clicks pass through empty areas */
+        }
+
+        #mcp-logs-panel>* {
+            pointer-events: auto;
+            /* Enable interaction with logs */
+        }
+
+        /* Floating Toggle Button */
+        #mcp-logs-toggle {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            z-index: 1601;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 20px;
+            /* Pill shape */
+            width: auto;
+            /* Auto width */
+            padding: 0 12px;
+            /* Padding for text */
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            /* Gap for icon and text */
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            color: #555;
+        }
+
+        #mcp-logs-toggle:hover {
+            background: #f8f9fa;
+            color: #3498db;
+            transform: scale(1.05);
+        }
+
+        #mcp-logs-toggle.active {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Adjust MCP internal layout */
+        #mcp-chat-area {
+            background: transparent !important;
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px !important;
+        }
+
+        #mcp-panel>div:last-child {
+            background: rgba(255, 255, 255, 0.4) !important;
+            /* Semi-transparent footer */
+            border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            #top-nav {
+                padding: 0 15px;
+            }
+
+            .brand span {
+                display: none;
+            }
+
+            /* Hide text on mobile */
+            .nav-item span {
+                display: none;
+            }
+
+            /* Hide text */
+            #mcp-panel {
+                width: calc(100% - 40px) !important;
+            }
+        }
+
+        /* Floating Controls */
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            /* Aligned with Fleet Status Panel */
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 1500;
+            /* Match Fleet Status Panel z-index */
+            min-width: 250px;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        select,
+        input[type="date"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        /* Custom Markers */
+        .vehicle-marker {
+            transition: all 0.5s ease-in-out;
+            /* Smooth movement! */
+        }
+
+        /* Legend */
+        #legend {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            /* Moved to Bottom-Left */
+            right: auto;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 2px;
+            padding: 16px;
+            position: fixed;
+            z-index: 3000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 17px;
+        }
+
+        #toast.show {
+            visibility: visible;
+            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @-webkit-keyframes fadein {
+            from {
+                bottom: 0;
+                opacity: 0;
+            }
+
+            to {
+                bottom: 30px;
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadein {
+            from {
+                bottom: 0;
+                opacity: 0;
+            }
+
+            to {
+                bottom: 30px;
+                opacity: 1;
+            }
+        }
+
+        @-webkit-keyframes fadeout {
+            from {
+                bottom: 30px;
+                opacity: 1;
+            }
+
+            to {
+                bottom: 0;
+                opacity: 0;
+            }
+        }
+
+        @keyframes fadeout {
+            from {
+                bottom: 30px;
+                opacity: 1;
+            }
+
+            to {
+                bottom: 0;
+                opacity: 0;
+            }
+        }
+
+        /* Thinking Process Styles */
+        .thinking-process {
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 0.85rem;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .thinking-header {
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.03);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #7f8c8d;
+            font-weight: 500;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .thinking-header:hover {
+            background: rgba(0, 0, 0, 0.06);
+        }
+
+        .thinking-body {
+            display: none;
+            /* Hidden by default */
+            padding: 10px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .step-item {
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .step-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .step-content {
+            background: rgba(248, 249, 250, 0.2);
+            /* Semi-transparent */
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.75rem;
+            color: #34495e;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            margin-left: 20px;
+        }
+
+        /* Route Labels */
+        .route-label {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #3498db;
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header (Top Nav) -->
+    <header id="top-nav">
+        <div class="brand">
+            <i class="fas fa-truck-moving"></i>
+            Fleet Hub
+        </div>
+        <div class="nav-links">
+            <div class="nav-item active" onclick="switchMode('realtime')">
+                <i class="fas fa-satellite-dish"></i> Live 1.0
+            </div>
+            <div class="nav-item" onclick="switchMode('realtime-v2')">
+                <i class="fas fa-traffic-light"></i> Live 2.0 <span class="badge beta">Beta</span>
+            </div>
+            <div class="nav-item" onclick="switchMode('history')">
+                <i class="fas fa-history"></i> History
+            </div>
+            <div class="nav-item" onclick="switchMode('dashboard')">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </div>
+            <div class="nav-item" onclick="switchMode('mcp')">
+                <i class="fas fa-brain"></i> MCP <span class="badge alpha">Alpha</span>
+            </div>
+        </div>
+        <div class="theme-toggle" onclick="toggleMapTheme()">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </div>
+    </header>
+
+    <!-- Floating Stats Widget -->
+    <div id="live-stats-widget" class="floating-card" style="display: none;">
+        <div class="stat-item">
+            <span class="stat-label">Total</span>
+            <strong id="total-count">--</strong>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-label">Active</span>
+            <strong id="active-count" style="color: #2ecc71">--</strong>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-label">Updated</span>
+            <span id="last-update" style="font-size: 0.8rem; color: #95a5a6;">--:--:--</span>
+        </div>
+    </div>
+
+
+
+    <!-- Main Content -->
+    <div id="content">
+        <div id="map"></div>
+
+        <!-- Realtime Controls -->
+        <div id="realtime-controls" class="map-controls" style="display: none;">
+            <!-- <div class="control-group">
+                <label>Monitor Mode</label>
+                <select id="monitor-mode" onchange="toggleMonitorMode()">
+                    <option value="all">All Vehicles</option>
+                    <option value="selected">Selected Only</option>
+                </select>
+            </div>
+            <div class="control-group" id="realtime-vehicle-select-group" style="display: none;">
+                <label>Select Vehicle</label>
+                <select id="realtime-vehicle-select">
+                    <option value="">-- Select --</option>
+                </select>
+            </div> -->
+
+            <div id="v2-controls" style="display:none; border-top:1px solid #eee; margin-top:15px; padding-top:10px;">
+                <label style="color:#e67e22; margin-bottom:10px;">🚦 Traffic Layers</label>
+                <div style="margin-bottom:8px;">
+                    <input type="checkbox" id="layer-flow" onchange="toggleTrafficLayer('flow')">
+                    <label for="layer-flow" style="display:inline; font-weight:normal;">Flow</label>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <input type="checkbox" id="layer-incidents" onchange="toggleTrafficLayer('incidents')">
+                    <label for="layer-incidents" style="display:inline; font-weight:normal;">Incidents</label>
+                </div>
+                <div style="margin-top:10px; border-top:1px dashed #eee; padding-top:10px;">
+                    <label style="color:#c0392b; font-size:0.9rem;">🔔 Alert System</label>
+                    <div style="margin-bottom:5px;">
+                        <input type="checkbox" id="alert-system-toggle" checked onchange="toggleAlertSystem()">
+                        <label for="alert-system-toggle"
+                            style="display:inline; font-weight:normal; font-size:0.85rem;">Enable Live Alerts</label>
+                    </div>
+                    <button onclick="showHistoryAlerts()"
+                        style="background:#ecf0f1; color:#2c3e50; border:1px solid #bdc3c7; padding:4px; font-size:0.8rem; margin-top:5px;">
+                        <i class="fas fa-history"></i> Alert History
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Container for Live 2.0 (Optimized Position) -->
+        <div id="alert-container"
+            style="position: absolute; bottom: 140px; left: 20px; width: 300px; z-index: 1500; display: none; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; pointer-events: none;">
+            <!-- Alerts will be injected here -->
+        </div>
+
+        <!-- Alert History Modal -->
+        <div id="alert-history-modal"
+            style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:500px; max-height:600px; background:white; z-index:3000; box-shadow:0 5px 20px rgba(0,0,0,0.3); border-radius:8px; flex-direction:column;">
+            <div
+                style="padding:15px; background:#2c3e50; color:white; border-radius:8px 8px 0 0; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold;"><i class="fas fa-history"></i> Alert History</span>
+                <i class="fas fa-times" style="cursor:pointer;"
+                    onclick="document.getElementById('alert-history-modal').style.display='none'"></i>
+            </div>
+            <div id="alert-history-content" style="padding:15px; overflow-y:auto; flex:1;">
+                <!-- History items -->
+            </div>
+        </div>
+
+        <!-- History Controls -->
+        <div id="history-controls" class="map-controls">
+            <div class="control-group">
+                <label>Select Vehicle</label>
+                <select id="vehicle-select">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Select Date</label>
+                <input type="date" id="date-select">
+            </div>
+            <button onclick="loadHistory()" id="load-history-btn" disabled>Load History</button>
+        </div>
+
+        <div id="loading"><i class="fas fa-spinner fa-spin"></i> Loading data...</div>
+        <div id="toast">Some text some message..</div>
+
+        <div id="legend">
+            <div class="legend-item">
+                <i class="fas fa-truck legend-icon" style="color: #2ecc71;"></i> Driving
+            </div>
+            <div class="legend-item">
+                <i class="fas fa-truck legend-icon" style="color: #3498db;"></i> Stopped
+            </div>
+            <div class="legend-item" id="history-legend" style="display:none;">
+                <span
+                    style="display:inline-block; width: 20px; height: 4px; background: red; margin-right: 8px; vertical-align: middle;"></span>
+                Route History
+            </div>
+            <div class="legend-item" id="event-legend" style="display:none;">
+                <i class="fas fa-exclamation-triangle legend-icon" style="color: #e67e22;"></i> Event
+            </div>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div id="dashboard-panel"
+            style="display: none; height: 100%; padding: 20px; box-sizing: border-box; background: #f8f9fa; overflow-y: auto;">
+
+            <!-- KPI Cards -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
+                <div class="kpi-card"
+                    style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #3498db;">
+                    <div style="color: #95a5a6; font-size: 0.9rem; text-transform: uppercase;">Total Vehicles</div>
+                    <div id="kpi-total-vehicles" style="font-size: 2rem; font-weight: bold; color: #2c3e50;">--</div>
+                </div>
+                <div class="kpi-card"
+                    style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #2ecc71;">
+                    <div style="color: #95a5a6; font-size: 0.9rem; text-transform: uppercase;">Active (24h)</div>
+                    <div id="kpi-active-vehicles" style="font-size: 2rem; font-weight: bold; color: #2c3e50;">--</div>
+                </div>
+                <div class="kpi-card"
+                    style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #f1c40f;">
+                    <div style="color: #95a5a6; font-size: 0.9rem; text-transform: uppercase;">Logs Count</div>
+                    <div id="kpi-total-logs" style="font-size: 2rem; font-weight: bold; color: #2c3e50;">--</div>
+                </div>
+                <div class="kpi-card"
+                    style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #e74c3c;">
+                    <div style="color: #95a5a6; font-size: 0.9rem; text-transform: uppercase;">Violations (7d)</div>
+                    <div id="kpi-total-violations" style="font-size: 2rem; font-weight: bold; color: #2c3e50;">--</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 20px; height: calc(100% - 140px);">
+
+                <!-- Left: Ranking (Reused) -->
+                <div
+                    style="flex: 1; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-y: auto;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                        <h2 style="margin: 0; color: #2c3e50; font-size: 1.2rem;">
+                            <i class="fas fa-list-ol"></i> Fleet Overview
+                        </h2>
+                        <!-- Timeframe Selector -->
+                        <div class="timeframe-selector"
+                            style="display: flex; background: #f1f2f6; border-radius: 8px; padding: 2px;">
+                            <button onclick="changeDashboardTimeframe(1)" class="time-btn" id="time-1d"
+                                style="border: none; background: transparent; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; color: #7f8c8d;">1D</button>
+                            <button onclick="changeDashboardTimeframe(7)" class="time-btn active" id="time-7d"
+                                style="border: none; background: white; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; color: #2c3e50; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">7D</button>
+                            <button onclick="changeDashboardTimeframe(30)" class="time-btn" id="time-30d"
+                                style="border: none; background: transparent; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; color: #7f8c8d;">30D</button>
+                        </div>
+                    </div>
+
+                    <div id="ranking-list">
+                        <div style="text-align: center; padding: 20px; color: #bdc3c7;">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Charts -->
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 20px; overflow: hidden;">
+                    <!-- Prevent overflow -->
+                    <!-- Chart 1: Trend -->
+                    <div
+                        style="flex: 1; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); min-height: 0; display: flex; flex-direction: column;">
+                        <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 1rem; flex-shrink: 0;">Safety Trend
+                            (Violations)</h3>
+                        <div style="flex: 1; position: relative; min-height: 0;">
+                            <!-- Critical for Chart.js responsiveness -->
+                            <canvas id="chart-trend"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 2: Breakdown -->
+                    <div
+                        style="flex: 1; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); min-height: 0; display: flex; flex-direction: column;">
+                        <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 1rem; flex-shrink: 0;">Violation Type
+                            Distribution</h3>
+                        <div style="flex: 1; position: relative; min-height: 0;">
+                            <!-- Critical for Chart.js responsiveness -->
+                            <canvas id="chart-breakdown"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- MCP Panel -->
+        <div id="mcp-panel"
+            style="display:none; padding:0; flex:1; flex-direction:column; background:#fff; height: 100%; box-sizing: border-box; overflow: hidden;">
+
+            <div id="mcp-chat-area"
+                style="flex:1; background:transparent; padding:15px; overflow-y:auto; display:flex; flex-direction:column; gap:15px;">
+                <!-- Chat Messages -->
+                <div class="chat-msg system">
+                    <div class="chat-flex" style="display:flex; gap:10px;">
+                        <div class="chat-icon-container"
+                            style="width:28px; height:28px; background:linear-gradient(135deg, #8e44ad, #9b59b6); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-size:0.8rem; box-shadow:0 2px 5px rgba(0,0,0,0.1); flex-shrink: 0;">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="chat-bubble"
+                            style="background:rgba(255,255,255,0.8); padding:10px 14px; border-radius:0 16px 16px 16px; max-width:90%; line-height:1.5; color:#2c3e50; box-shadow:0 1px 2px rgba(0,0,0,0.05); border:1px solid rgba(255,255,255,0.5);">
+                            Hello! I am your AI Fleet Assistant. I can analyze safety, track vehicles, and check traffic
+                            conditions. How can I help?
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                style="background:transparent; border-top:1px solid rgba(255,255,255,0.3); padding:12px 15px 15px 15px; flex-shrink: 0;">
+                <div style="position:relative; display:flex; align-items:center; background:rgba(255,255,255,0.6); border-radius:24px; padding:4px 10px 4px 15px; border:1px solid transparent; transition:border 0.2s;"
+                    id="input-container">
+                    <input type="text" id="mcp-input" placeholder="Ask anything..."
+                        style="flex:1; padding:8px 0; border:none; background:transparent; outline:none; font-size:0.95rem; color:#2c3e50;"
+                        onkeypress="if(event.key==='Enter') sendMCPMessage()"
+                        onfocus="document.getElementById('input-container').style.borderColor='#8e44ad'"
+                        onblur="document.getElementById('input-container').style.borderColor='transparent'">
+
+                    <div style="display:flex; align-items:center; gap:5px; margin-left:10px;">
+                        <select id="mcp-model-select"
+                            style="padding:4px 8px; border-radius:12px; border:1px solid #ddd; background:white; font-size:0.75rem; color:#555; cursor:pointer; outline:none;">
+                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        </select>
+
+                        <button onclick="sendMCPMessage()"
+                            style="width:32px; height:32px; background:#8e44ad; color:white; border:none; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s;"
+                            onmouseover="this.style.background='#732d91'" onmouseout="this.style.background='#8e44ad'">
+                            <i class="fas fa-arrow-up" style="font-size:0.9rem;"></i>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    style="font-size:0.7rem; color:#95a5a6; text-align:center; margin-top:8px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <span>AI can make mistakes. Please verify important information.</span>
+                    <button onclick="clearMCPMap()"
+                        style="background: none; border: 1px solid #bdc3c7; color: #7f8c8d; padding: 2px 8px; border-radius: 12px; cursor: pointer; font-size: 0.7rem; width: auto; height: auto;">
+                        <i class="fas fa-eraser"></i> Clear Map
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MCP Logs Overlay (Minimalist) -->
+        <div id="mcp-logs-panel" style="display:none; margin-top: 50px;"> <!-- Offset for toggle button -->
+            <div id="mcp-logs-content" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                <!-- Logs will be injected here as floating cards -->
+            </div>
+        </div>
+
+        <!-- Floating Toggle for Logs -->
+        <div id="mcp-logs-toggle" onclick="toggleLogsPanel()" style="display:none;" title="Toggle Logic Flow">
+            <i class="fas fa-network-wired"></i>
+            <span style="font-size: 0.8rem; font-weight: bold;">LOGIC FLOW</span>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Markdown Support -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js -->
+
+    <script>
+        // --- State ---
+        let map;
+        let vehicleMarkers = {}; // Store markers by ID for updating
+        let vehicleLastPos = {}; // Store last position for driving detection
+        let historyPolyline = null;
+        let eventMarkers = [];
+        let refreshInterval = null;
+        let currentMode = 'realtime'; // 'realtime', 'history', 'realtime-v2', 'dashboard', 'mcp'
+
+        // Dashboard Charts
+        let trendChart = null;
+        let breakdownChart = null;
+
+        // TomTom Layers
+        let tomtomLayers = {
+            flow: null,
+            incidents: null
+        };
+        let tomtomApiKey = null;
+
+        // --- Icons ---
+        const truckIconGreen = L.divIcon({
+            html: '<i class="fas fa-truck" style="color: #2ecc71; font-size: 20px; text-shadow: 1px 1px 2px black;"></i>',
+            className: 'vehicle-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        const truckIconBlue = L.divIcon({
+            html: '<i class="fas fa-truck" style="color: #3498db; font-size: 20px; text-shadow: 1px 1px 2px black;"></i>',
+            className: 'vehicle-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        const eventIcon = L.divIcon({
+            html: '<i class="fas fa-exclamation-triangle" style="color: #e67e22; font-size: 20px; text-shadow: 1px 1px 2px white;"></i>',
+            className: 'event-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        // --- Toast ---
+        function showToast(message) {
+            const x = document.getElementById("toast");
+            x.innerText = message;
+            x.className = "show";
+            setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        let mcpLayerGroup = L.layerGroup(); // Layer group for MCP AI markers/routes
+
+        // --- Initialization ---
+        function initMap() {
+            // Default center (Spain)
+            map = L.map('map', { zoomControl: false }).setView([40.4168, -3.7038], 6);
+
+            // Add Zoom Control to Bottom Right
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            }).addTo(map);
+
+            // Add MCP Layer Group
+            mcpLayerGroup.addTo(map);
+
+            // Start Realtime Mode
+            startRealtimeUpdates();
+            // loadVehicleList(); // Removed redundant call
+
+            // Pre-fetch TomTom Key
+            fetch('/api/config/tomtom-key')
+                .then(res => res.json())
+                .then(data => tomtomApiKey = data.key)
+                .catch(e => console.error("Failed to load TomTom key", e));
+        }
+
+        let alertHistory = []; // Store all alerts
+        let shownAlertIds = new Set(); // Dedup by incident description + vehicle
+        let isAlertSystemActive = true;
+
+        // --- Realtime Logic ---
+        async function fetchVehicles() {
+            // Early exit if not in realtime mode
+            if (!currentMode.startsWith('realtime')) return;
+
+            try {
+                const response = await fetch('/api/vehicles');
+                const vehicles = await response.json();
+
+                // CRITICAL FIX: Check mode before updating map
+                if (!currentMode.startsWith('realtime')) return;
+
+                // 1. Calculate status for ALL vehicles first
+                vehicles.forEach(v => {
+                    // Determine driving status based on speed OR position change
+                    let isMoving = v.speed > 0;
+
+                    // Check position change
+                    if (!isMoving && vehicleLastPos[v.id]) {
+                        const last = vehicleLastPos[v.id];
+                        const delta = Math.abs(v.latitude - last.lat) + Math.abs(v.longitude - last.lon);
+                        if (delta > 0.00001) {
+                            isMoving = true;
+                        }
+                    }
+
+                    // Update last pos
+                    vehicleLastPos[v.id] = { lat: v.latitude, lon: v.longitude };
+
+                    // Attach calculated status to object
+                    v._calculatedIsMoving = isMoving;
+                });
+
+                // 2. Filter vehicles for display
+                const mode = document.getElementById('monitor-mode').value;
+                const selectedId = document.getElementById('realtime-vehicle-select').value;
+
+                let displayVehicles = vehicles;
+                if (mode === 'selected' && selectedId) {
+                    displayVehicles = vehicles.filter(v => v.id === selectedId);
+                } else if (mode === 'selected' && !selectedId) {
+                    displayVehicles = [];
+                }
+
+                // 3. Update Map
+                updateMapMarkers(displayVehicles);
+
+                // 4. Update Stats (using calculated status)
+                updateStats(vehicles);
+
+                // 5. Live 2.0 Feature: Check Incidents for Active Vehicles
+                if (currentMode === 'realtime-v2' && isAlertSystemActive) {
+                    const activeVehicles = vehicles.filter(v => v._calculatedIsMoving);
+                    if (activeVehicles.length > 0) {
+                        checkTrafficIncidents(activeVehicles);
+                    }
+                }
+
+                // Schedule next update ONLY after current one finishes
+                if (currentMode.startsWith('realtime')) {
+                    refreshInterval = setTimeout(fetchVehicles, 2000);
+                }
+
+            } catch (error) {
+                console.error('Error fetching vehicles:', error);
+                // Retry even on error (maybe slower)
+                if (currentMode.startsWith('realtime')) {
+                    refreshInterval = setTimeout(fetchVehicles, 5000);
+                }
+            }
+        }
+
+        async function checkTrafficIncidents(vehicles) {
+            // Clear old visible alerts (but keep history)
+            const container = document.getElementById('alert-container');
+            // Don't clear immediately to allow animation, let them expire or manual close
+
+            // Limit to checking 3 vehicles max to avoid rate limits
+            for (const v of vehicles.slice(0, 3)) {
+                try {
+                    const response = await fetch('/api/traffic/check-incidents', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ latitude: v.latitude, longitude: v.longitude })
+                    });
+                    const incidents = await response.json();
+
+                    if (incidents.length > 0) {
+                        incidents.forEach(inc => {
+                            // Deduplication Key: Vehicle + Incident Description
+                            const alertKey = `${v.id}-${inc.description}`;
+
+                            if (!shownAlertIds.has(alertKey)) {
+                                createAlertCard(v, inc);
+
+                                // Add to history
+                                alertHistory.unshift({
+                                    vehicle: v.name,
+                                    time: new Date().toLocaleTimeString(),
+                                    desc: inc.description,
+                                    category: inc.category,
+                                    lat: v.latitude,
+                                    lon: v.longitude
+                                });
+
+                                // Mark as shown
+                                shownAlertIds.add(alertKey);
+
+                                // Allow re-showing after 5 minutes (simple expiration)
+                                setTimeout(() => shownAlertIds.delete(alertKey), 300000);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Traffic check failed", e);
+                }
+            }
+        }
+
+        function createAlertCard(vehicle, incident) {
+            const container = document.getElementById('alert-container');
+            const div = document.createElement('div');
+
+            // Icon mapping
+            let icon = '⚠️';
+            let color = '#e74c3c'; // Red
+            if (incident.category === 1) { icon = '💥'; } // Accident
+            else if (incident.category === 6) { icon = '🐌'; color = '#f39c12'; } // Jam
+            else if (incident.category === 8) { icon = '⛔'; color = '#c0392b'; } // Closed
+
+            div.style.cssText = `
+                background: white;
+                border-left: 5px solid ${color};
+                padding: 15px;
+                border-radius: 4px;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+                animation: slideIn 0.5s;
+                pointer-events: auto; /* Enable clicking */
+                position: relative;
+                cursor: pointer;
+            `;
+
+            // Auto remove after 10 seconds
+            setTimeout(() => {
+                div.style.animation = 'fadeOut 0.5s forwards';
+                setTimeout(() => div.remove(), 500);
+            }, 10000);
+
+            // Click to zoom
+            div.onclick = (e) => {
+                // Prevent zoom if clicking close button
+                if (e.target.classList.contains('fa-times')) return;
+
+                map.setView([vehicle.latitude, vehicle.longitude], 16);
+                // Optionally open vehicle popup
+                if (vehicleMarkers[vehicle.id]) {
+                    vehicleMarkers[vehicle.id].openPopup();
+                }
+            };
+
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <strong style="color:${color}">${icon} Traffic Alert</strong>
+                    <i class="fas fa-times" style="cursor:pointer; color:#999;" onclick="this.parentElement.parentElement.remove()"></i>
+                </div>
+                <div style="font-size:0.9rem; color:#2c3e50;">
+                    <b>${vehicle.name}</b> is near:<br>
+                    ${incident.description}
+                </div>
+                <div style="margin-top:5px; font-size:0.8rem; color:#95a5a6;">
+                    <i class="fas fa-map-marker-alt"></i> ${vehicle.latitude.toFixed(4)}, ${vehicle.longitude.toFixed(4)}
+                </div>
+            `;
+
+            container.appendChild(div);
+        }
+
+        function toggleAlertSystem() {
+            isAlertSystemActive = document.getElementById('alert-system-toggle').checked;
+            if (!isAlertSystemActive) {
+                document.getElementById('alert-container').innerHTML = '';
+            }
+        }
+
+        function showHistoryAlerts() {
+            const modal = document.getElementById('alert-history-modal');
+            const content = document.getElementById('alert-history-content');
+            modal.style.display = 'flex';
+            content.innerHTML = '';
+
+            if (alertHistory.length === 0) {
+                content.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">No alerts yet</div>';
+                return;
+            }
+
+            alertHistory.forEach(item => {
+                const div = document.createElement('div');
+                div.style.cssText = "padding:10px; border-bottom:1px solid #eee; cursor:pointer; transition:background 0.2s;";
+                div.onmouseover = () => div.style.background = '#f9f9f9';
+                div.onmouseout = () => div.style.background = 'white';
+
+                // Click to zoom and close modal
+                div.onclick = () => {
+                    map.setView([item.lat, item.lon], 16);
+                    modal.style.display = 'none';
+                };
+
+                div.innerHTML = `
+                    <div style="font-weight:bold; color:#2c3e50;">${item.vehicle} - ${item.time}</div>
+                    <div style="color:#e74c3c; font-size:0.9rem;">${item.desc}</div>
+                    <div style="color:#95a5a6; font-size:0.8rem; margin-top:2px;">
+                        <i class="fas fa-search-location"></i> Click to locate
+                    </div>
+                `;
+                content.appendChild(div);
+            });
+        }
+
+        // CSS Animation for alerts
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes slideIn {
+                from { transform: translateX(-100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes fadeOut {
+                to { opacity: 0; transform: translateY(-20px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        function updateMapMarkers(vehicles) {
+            // Get IDs of current vehicles to display
+            const currentIds = new Set(vehicles.map(v => v.id));
+
+            // Remove markers not in current set
+            Object.keys(vehicleMarkers).forEach(id => {
+                if (!currentIds.has(id)) {
+                    map.removeLayer(vehicleMarkers[id]);
+                    delete vehicleMarkers[id];
+                }
+            });
+
+            vehicles.forEach(v => {
+                const isMoving = v._calculatedIsMoving; // Use pre-calculated status
+                const icon = isMoving ? truckIconGreen : truckIconBlue;
+                const statusText = isMoving ? 'Driving' : 'Stopped';
+
+                const popupContent = `
+                    <b>${v.name}</b><br>
+                    Speed: ${v.speed} km/h<br>
+                    Status: ${statusText}<br>
+                    Last seen: ${v.dateTime}
+                `;
+
+                if (vehicleMarkers[v.id]) {
+                    // Update existing marker
+                    const marker = vehicleMarkers[v.id];
+                    marker.setLatLng([v.latitude, v.longitude]);
+                    marker.setIcon(icon);
+                    marker.setPopupContent(popupContent);
+                } else {
+                    // Create new marker
+                    const marker = L.marker([v.latitude, v.longitude], { icon: icon })
+                        .bindPopup(popupContent)
+                        .addTo(map);
+                    vehicleMarkers[v.id] = marker;
+                }
+            });
+
+            // Initial map fit (only once)
+            if (vehicles.length > 0 && !window.hasCentered) {
+                const group = new L.featureGroup(Object.values(vehicleMarkers));
+                map.fitBounds(group.getBounds().pad(0.1));
+                window.hasCentered = true;
+            }
+        }
+
+        function updateStats(vehicles) {
+            const total = vehicles.length;
+            // Count based on calculated status, NOT the raw API status
+            const active = vehicles.filter(v => v._calculatedIsMoving).length;
+
+            document.getElementById('total-count').innerText = total;
+            document.getElementById('active-count').innerText = active;
+
+            const now = new Date();
+            document.getElementById('last-update').innerText = now.toLocaleTimeString();
+        }
+
+        function startRealtimeUpdates() {
+            // Defensive: ensure previous interval is cleared
+            stopRealtimeUpdates();
+
+            fetchVehicles(); // First run
+        }
+
+        function stopRealtimeUpdates() {
+            if (refreshInterval) {
+                clearTimeout(refreshInterval); // Use clearTimeout now
+                refreshInterval = null;
+            }
+        }
+        // --- History Logic ---
+        async function loadVehicleList() {
+            try {
+                const response = await fetch('/api/devices');
+                const devices = await response.json();
+                const select = document.getElementById('vehicle-select');
+                select.innerHTML = '<option value="">-- 請選擇車輛 --</option>';
+                devices.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.id;
+                    option.text = d.name;
+                    select.appendChild(option);
+                });
+
+                // Set default date to today
+                document.getElementById('date-select').valueAsDate = new Date();
+
+                // Enable button when vehicle selected
+                select.addEventListener('change', () => {
+                    document.getElementById('load-history-btn').disabled = !select.value;
+                });
+            } catch (e) {
+                console.error("Error loading devices", e);
+            }
+        }
+
+        async function loadHistory() {
+            const deviceId = document.getElementById('vehicle-select').value;
+            const date = document.getElementById('date-select').value;
+
+            if (!deviceId || !date) return;
+
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/history/${deviceId}?date=${date}`);
+                const data = await response.json(); // Now returns { logs, actualDate, message }
+
+                const logs = data.logs || [];
+                const events = data.events || [];
+
+                // Clear previous history
+                if (historyPolyline) map.removeLayer(historyPolyline);
+                eventMarkers.forEach(m => map.removeLayer(m));
+                eventMarkers = [];
+
+                if (logs.length === 0) {
+                    showToast(data.message || '該期間(含前7天)無軌跡資料');
+                    return;
+                }
+
+                // Show message if date was backtracked
+                if (data.message) {
+                    showToast(data.message);
+                    // Optionally update the date picker to reflect reality
+                    if (data.actualDate) {
+                        document.getElementById('date-select').value = data.actualDate;
+                    }
+                } else {
+                    if (events.length > 0) {
+                        showToast(`已載入 ${logs.length} 筆軌跡點與 ${events.length} 個事件`);
+                    } else {
+                        showToast(`已載入 ${logs.length} 筆軌跡點`);
+                    }
+                }
+
+                const latlngs = logs.map(log => [log.latitude, log.longitude]);
+
+                historyPolyline = L.polyline(latlngs, { color: 'red', weight: 4, opacity: 0.7 }).addTo(map);
+
+                // Add event markers
+                events.forEach(e => {
+                    const marker = L.marker([e.latitude, e.longitude], { icon: eventIcon })
+                        .bindPopup(`
+                            <div style="text-align:center">
+                                <b style="color:#e67e22"><i class="fas fa-exclamation-triangle"></i> ${e.ruleName}</b><br>
+                                <hr style="margin:5px 0; border:0; border-top:1px solid #eee">
+                                Time: ${new Date(e.time).toLocaleTimeString()}<br>
+                                Duration: ${e.duration}
+                            </div>
+                        `)
+                        .addTo(map);
+                    eventMarkers.push(marker);
+                });
+
+                // Add start/end markers
+                // (Optional: Implement custom markers for start/end if desired)
+
+                map.fitBounds(historyPolyline.getBounds());
+
+            } catch (e) {
+                alert('載入失敗: ' + e);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        let selectedVehicleStats = null;
+
+        // --- Theme Logic ---
+        function toggleMapTheme() {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+
+            body.classList.toggle('geek-black');
+
+            if (body.classList.contains('geek-black')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            }
+        }
+
+        // --- Mode Switching ---
+        function switchMode(mode) {
+            currentMode = mode;
+
+            // Update UI tabs
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navs = document.querySelectorAll('.nav-item');
+            if (mode === 'realtime') navs[0].classList.add('active');
+            if (mode === 'realtime-v2') navs[1].classList.add('active');
+            if (mode === 'history') navs[2].classList.add('active');
+            if (mode === 'dashboard') navs[3].classList.add('active');
+            if (mode === 'mcp') navs[4].classList.add('active');
+
+            // Hide all panels first
+            // document.getElementById('map').style.display = 'none'; // KEEP MAP VISIBLE FOR MCP
+            document.getElementById('dashboard-panel').style.display = 'none';
+            document.getElementById('realtime-controls').style.display = 'none';
+            document.getElementById('history-controls').style.display = 'none';
+            document.getElementById('legend').style.display = 'none';
+            document.getElementById('v2-controls').style.display = 'none';
+            document.getElementById('alert-container').style.display = 'none';
+            document.getElementById('mcp-panel').style.display = 'none';
+            document.getElementById('mcp-logs-panel').style.display = 'none';
+            document.getElementById('mcp-logs-toggle').style.display = 'none';
+            document.getElementById('live-stats-widget').style.display = 'none'; // Hide widget by default
+
+            // Clean up intervals
+            stopRealtimeUpdates();
+
+            // Clean up TomTom Layers
+            if (tomtomLayers.flow) map.removeLayer(tomtomLayers.flow);
+            if (tomtomLayers.incidents) map.removeLayer(tomtomLayers.incidents);
+            document.getElementById('layer-flow').checked = false;
+            document.getElementById('layer-incidents').checked = false;
+
+            // Clear MCP Layer Group when leaving MCP mode
+            if (currentMode !== 'mcp') {
+                mcpLayerGroup.clearLayers();
+            }
+
+            if (mode === 'realtime' || mode === 'realtime-v2') {
+                document.getElementById('map').style.display = 'block';
+                document.getElementById('realtime-controls').style.display = 'block';
+                document.getElementById('legend').style.display = 'block';
+                document.getElementById('live-stats-widget').style.display = 'flex'; // Show widget
+                // Hide extra legend items
+                document.getElementById('history-legend').style.display = 'none';
+                document.getElementById('event-legend').style.display = 'none';
+
+                if (historyPolyline) map.removeLayer(historyPolyline);
+                eventMarkers.forEach(m => map.removeLayer(m));
+
+                if (mode === 'realtime-v2') {
+                    document.getElementById('v2-controls').style.display = 'block';
+                    document.getElementById('alert-container').style.display = 'flex';
+                }
+
+                startRealtimeUpdates();
+
+                // vehicle stats functions
+                // load all vehicles
+                // loadVehicleList();
+
+
+            } else if (mode === 'history') {
+                document.getElementById('map').style.display = 'block';
+                document.getElementById('history-controls').style.display = 'block';
+                document.getElementById('legend').style.display = 'block';
+
+                document.getElementById('history-legend').style.display = 'flex';
+                document.getElementById('event-legend').style.display = 'flex';
+
+                // FORCE CLEANUP
+                Object.values(vehicleMarkers).forEach(m => map.removeLayer(m));
+                vehicleMarkers = {};
+
+                // Ensure MCP layer is cleared just in case
+                mcpLayerGroup.clearLayers();
+
+            } else if (mode === 'dashboard') {
+                document.getElementById('map').style.display = 'none'; // Hide map for dashboard
+                document.getElementById('dashboard-panel').style.display = 'block';
+                loadSafetyRanking();
+                loadDashboardStats();
+
+                // Ensure MCP layer is cleared just in case
+                mcpLayerGroup.clearLayers();
+
+            } else if (mode === 'mcp') {
+                document.getElementById('map').style.display = 'block'; // Show map background
+                document.getElementById('mcp-panel').style.display = 'flex';
+                document.getElementById('mcp-logs-panel').style.display = 'flex';
+                document.getElementById('mcp-logs-toggle').style.display = 'flex';
+                document.getElementById('mcp-logs-toggle').classList.add('active'); // Default active
+
+                // Clear other layers to avoid clutter
+                if (historyPolyline) map.removeLayer(historyPolyline);
+                eventMarkers.forEach(m => map.removeLayer(m));
+                Object.values(vehicleMarkers).forEach(m => map.removeLayer(m));
+
+                // Ensure MCP layer is visible
+                if (!map.hasLayer(mcpLayerGroup)) {
+                    mcpLayerGroup.addTo(map);
+                }
+            }
+
+            // Trigger map resize to handle layout changes
+            setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
+        function toggleTrafficLayer(type) {
+            if (!tomtomApiKey) {
+                alert("TomTom API Key not loaded yet.");
+                return;
+            }
+
+            const checkbox = document.getElementById(`layer-${type}`);
+
+            if (checkbox.checked) {
+                if (tomtomLayers[type]) {
+                    map.addLayer(tomtomLayers[type]);
+                } else {
+                    let url = '';
+                    if (type === 'flow') {
+                        url = `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${tomtomApiKey}`;
+                    } else {
+                        url = `https://api.tomtom.com/traffic/map/4/tile/incidents/s0/{z}/{x}/{y}.png?key=${tomtomApiKey}`;
+                    }
+
+                    tomtomLayers[type] = L.tileLayer(url, {
+                        maxZoom: 22,
+                        opacity: 0.8
+                    }).addTo(map);
+                }
+            } else {
+                if (tomtomLayers[type]) {
+                    map.removeLayer(tomtomLayers[type]);
+                }
+            }
+        }
+
+        // --- AI Coach Logic ---
+        let globalRankingData = [];
+        let currentDashboardDays = 7; // Default 7 days
+
+        async function changeDashboardTimeframe(days) {
+            currentDashboardDays = days;
+
+            // Update UI
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+                btn.style.color = '#7f8c8d';
+                btn.style.fontWeight = 'normal';
+                btn.style.boxShadow = 'none';
+            });
+
+            const activeBtn = document.getElementById(`time-${days}d`);
+            activeBtn.classList.add('active');
+            activeBtn.style.background = 'white';
+            activeBtn.style.color = '#2c3e50';
+            activeBtn.style.fontWeight = 'bold';
+            activeBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+
+            // Reload Data
+            await loadDashboardStats();
+            // Note: Ranking list endpoint currently doesn't support timeframe param (it uses SafetyService default 7d)
+            // Ideally we should update that too, but for now we'll just reload stats which covers Charts & KPIs.
+            // If we want ranking to update, we need to update /api/coach/ranking to accept days too.
+            // Let's reload ranking anyway just to show loading state, even if backend is static 7d for now (unless we fix it).
+            // Actually, let's fix the ranking loading to use the data from stats if available, or just reload stats.
+
+            // WAIT! The ranking list in dashboard is populated from `loadSafetyRanking` which calls `/api/coach/ranking`.
+            // BUT `loadDashboardStats` calls `/api/dashboard/stats`.
+            // We should consolidate or update both.
+            // For this task, let's assume `loadDashboardStats` is the main one driving the charts.
+            // But user asked for "Safety Trend / Violation Type / Fleet Risk Overview" to change.
+            // So we need to update `loadSafetyRanking` logic too?
+            // Current `loadSafetyRanking` calls `/api/coach/ranking` which calls `get_fleet_safety_stats` (hardcoded 7 days).
+
+            // Strategy:
+            // 1. We updated `/api/dashboard/stats` to take `days`.
+            // 2. We should use the data from `/api/dashboard/stats` to populate the Ranking List too?
+            //    No, `/api/dashboard/stats` returns aggregated stats, not per-vehicle ranking.
+            // 3. So we need to update `/api/coach/ranking` to accept `days` as well!
+
+            await loadSafetyRanking();
+        }
+
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch(`/api/dashboard/stats?days=${currentDashboardDays}`);
+                const data = await response.json();
+
+                // Update KPI Cards
+                if (data.kpi) {
+                    document.getElementById('kpi-total-vehicles').innerText = data.kpi.total_vehicles;
+                    document.getElementById('kpi-active-vehicles').innerText = data.kpi.active_vehicles;
+                    document.getElementById('kpi-total-logs').innerText = data.kpi.total_logs;
+                    document.getElementById('kpi-total-violations').innerText = data.kpi.total_violations;
+                }
+
+                // Render Charts
+                renderCharts(data.trend, data.breakdown);
+
+            } catch (e) {
+                console.error("Failed to load dashboard stats", e);
+            }
+        }
+
+        function renderCharts(trendData, breakdownData) {
+            // Trend Chart
+            const trendCtx = document.getElementById('chart-trend').getContext('2d');
+            if (trendChart) trendChart.destroy();
+
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: trendData.map(d => d.date),
+                    datasets: [{
+                        label: 'Daily Violations',
+                        data: trendData.map(d => d.count),
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Breakdown Chart
+            const breakdownCtx = document.getElementById('chart-breakdown').getContext('2d');
+            if (breakdownChart) breakdownChart.destroy();
+
+            breakdownChart = new Chart(breakdownCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: breakdownData.map(d => d.rule_name),
+                    datasets: [{
+                        data: breakdownData.map(d => d.count),
+                        backgroundColor: [
+                            '#3498db', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+                }
+            });
+        }
+
+        async function loadSafetyRanking() {
+            const container = document.getElementById('ranking-list');
+            container.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Analyzing fleet data...</div>';
+
+            try {
+                // Pass timeframe to ranking endpoint
+                const response = await fetch(`/api/coach/ranking?days=${currentDashboardDays}`);
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px;">No violations found in last 7 days. Great job!</div>';
+                    return;
+                }
+
+                globalRankingData = data;
+                renderRankingList('all');
+
+            } catch (e) {
+                container.innerHTML = `<div style="color: red; padding: 20px;">Failed to load: ${e}</div>`;
+            }
+        }
+
+        function renderRankingList(filterType) {
+            const container = document.getElementById('ranking-list');
+            container.innerHTML = '';
+
+            // Add Tabs
+            const tabsDiv = document.createElement('div');
+            tabsDiv.style.cssText = "display: flex; gap: 15px; padding: 0 5px 10px; border-bottom: 1px solid #eee; margin-bottom: 10px; font-size: 0.9rem;";
+
+            const getStyle = (type) => filterType === type
+                ? "font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 2px; cursor: default;"
+                : "color: #95a5a6; cursor: pointer; transition: color 0.2s;";
+
+            tabsDiv.innerHTML = `
+                <span onclick="renderRankingList('all')" style="${getStyle('all')}">All</span>
+                <span onclick="renderRankingList('driver')" style="${getStyle('driver')}">Driver Risk</span>
+                <span onclick="renderRankingList('vehicle')" style="${getStyle('vehicle')}">Vehicle Health</span>
+            `;
+            container.appendChild(tabsDiv);
+
+            // Filter and Sort Logic
+            let displayList = [...globalRankingData]; // Clone
+
+            if (filterType === 'driver') {
+                displayList = displayList
+                    .filter(item => (item.categories.driver || 0) > 0)
+                    .sort((a, b) => (b.categories.driver || 0) - (a.categories.driver || 0));
+            } else if (filterType === 'vehicle') {
+                displayList = displayList
+                    .filter(item => (item.categories.vehicle || 0) > 0)
+                    .sort((a, b) => (b.categories.vehicle || 0) - (a.categories.vehicle || 0));
+            }
+            // 'all' uses default sort (total_events) from backend
+
+            if (displayList.length === 0) {
+                const msgDiv = document.createElement('div');
+                msgDiv.style.textAlign = 'center';
+                msgDiv.style.padding = '20px';
+                msgDiv.style.color = '#bdc3c7';
+                msgDiv.innerText = 'No records found';
+                container.appendChild(msgDiv);
+                return;
+            }
+
+            // Render All (Scrollable)
+            displayList.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    padding: 15px;
+                    border-bottom: 1px solid #eee;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    transition: background 0.2s;
+                `;
+                div.onmouseover = () => div.style.background = '#f0f8ff';
+                div.onmouseout = () => div.style.background = 'white';
+                div.onclick = () => openVehicleDetail(item.id);
+
+                let tags = '';
+                const driverCount = item.categories.driver || 0;
+                const vehicleCount = item.categories.vehicle || 0;
+
+                if (driverCount > 0) {
+                    tags += `<span style="background: #fadbd8; color: #c0392b; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-right: 5px;"><i class="fas fa-user-injured"></i> ${driverCount}</span>`;
+                }
+                if (vehicleCount > 0) {
+                    tags += `<span style="background: #fef9e7; color: #d35400; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-right: 5px;"><i class="fas fa-wrench"></i> ${vehicleCount}</span>`;
+                }
+
+                // Determine main count to show
+                let mainCount = item.total_events;
+                let countLabel = "Total";
+                if (filterType === 'driver') { mainCount = driverCount; countLabel = "Driver"; }
+                if (filterType === 'vehicle') { mainCount = vehicleCount; countLabel = "Vehicle"; }
+
+                // Show specific rules (Top 3)
+                let rulesHtml = '';
+                const sortedRules = Object.entries(item.breakdown)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 3);
+
+                if (sortedRules.length > 0) {
+                    rulesHtml = '<div style="margin-top: 5px; font-size: 0.8rem; color: #555;">';
+                    sortedRules.forEach(([rule, count]) => {
+                        // Shorten rule name for UI
+                        const shortName = rule.replace('Rule', '').replace('Id', '');
+                        rulesHtml += `<span style="background: #eee; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">${shortName}: ${count}</span>`;
+                    });
+                    if (Object.keys(item.breakdown).length > 3) rulesHtml += '...';
+                    rulesHtml += '</div>';
+                }
+
+                div.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #2c3e50;">#${index + 1} ${item.name}</div>
+                        <div style="font-size: 0.85rem; color: #7f8c8d; margin-top: 5px;">${tags}</div>
+                        ${rulesHtml}
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #e74c3c; text-align: right; min-width: 60px;">
+                        ${mainCount} <span style="font-size: 0.8rem; color: #95a5a6;">x</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function selectVehicleForCoach(stats) {
+            selectedVehicleStats = stats;
+            const btn = document.getElementById('generate-btn');
+            const content = document.getElementById('ai-content');
+
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-sparkles"></i> Generate Advice for ${stats.name}`;
+            btn.onclick = () => generateAdvice(stats);
+
+            content.innerHTML = `
+                <div style="text-align: center; margin-top: 50px; color: #2c3e50;">
+                    <h3>Selected: ${stats.name}</h3>
+                    <p>Total violations in last 7 days: <b>${stats.total_events}</b></p>
+                    <p>Click the button below to generate AI advice.</p>
+                </div>
+            `;
+        }
+
+        async function generateAdvice(stats) {
+            const btn = document.getElementById('generate-btn');
+            const content = document.getElementById('ai-content');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Thinking (approx. 30s)...`;
+            content.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                    <i class="fas fa-robot fa-bounce" style="font-size: 3rem; color: #8e44ad; margin-bottom: 20px;"></i>
+                    <div style="color: #555;">Analyzing driver behavior...</div>
+                    <div style="font-size: 0.8rem; color: #999; margin-top: 5px;">Please wait</div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/coach/generate/${stats.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(stats.breakdown)
+                });
+
+                const data = await response.json();
+
+                content.innerHTML = `
+                    <div style="padding: 10px;">
+                        <h3 style="color: #8e44ad; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+                            <i class="fas fa-robot"></i> AI Coach Advice
+                        </h3>
+                        <div style="font-size: 1.1rem; line-height: 1.6; color: #2c3e50; white-space: pre-wrap;">
+                            ${data.advice}
+                        </div>
+                    </div>
+                `;
+
+            } catch (e) {
+                content.innerHTML = `<div style="color: red;">Generation failed: ${e}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-sparkles"></i> Regenerate`;
+            }
+        }
+
+        function toggleMonitorMode() {
+            const mode = document.getElementById('monitor-mode').value;
+            const selectGroup = document.getElementById('realtime-vehicle-select-group');
+            selectGroup.style.display = (mode === 'selected') ? 'block' : 'none';
+
+            // Trigger immediate update
+            fetchVehicles();
+        }
+
+        // --- MCP Logic ---
+        function clearMCPMap() {
+            mcpLayerGroup.clearLayers();
+            showToast("Map cleared");
+        }
+
+        function toggleLogsPanel() {
+            const panel = document.getElementById('mcp-logs-panel');
+            const toggle = document.getElementById('mcp-logs-toggle');
+
+            if (panel.style.display === 'none') {
+                panel.style.display = 'flex';
+                toggle.classList.add('active');
+            } else {
+                panel.style.display = 'none';
+                toggle.classList.remove('active');
+            }
+        }
+
+        function createLogSession(question) {
+            const container = document.getElementById('mcp-logs-content');
+
+            // Auto-collapse previous sessions
+            document.querySelectorAll('.log-session .session-body').forEach(el => {
+                if (el.style.display !== 'none') {
+                    el.style.display = 'none';
+                    // Update icon - Target the toggle icon specifically (last child)
+                    const h = el.parentElement.querySelector('.session-toggle-icon');
+                    if (h) h.className = 'fas fa-chevron-down session-toggle-icon';
+                }
+            });
+
+            const sessionId = 'session-' + Date.now();
+
+            const sessionDiv = document.createElement('div');
+            sessionDiv.className = 'log-session';
+            sessionDiv.id = sessionId;
+            sessionDiv.style.cssText = "margin-bottom: 10px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-radius: 8px; overflow: hidden; pointer-events: auto; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 6px rgba(0,0,0,0.05);";
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'session-header';
+            header.style.cssText = "padding: 8px 12px; background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(5px); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: bold; color: #2c3e50; border-bottom: 1px solid rgba(255,255,255,0.1); transition: background 0.2s;";
+            header.onmouseover = () => header.style.background = 'rgba(255, 255, 255, 0.4)';
+            header.onmouseout = () => header.style.background = 'rgba(255, 255, 255, 0.3)';
+
+            header.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                    <i class="fas fa-question-circle" style="color: #3498db;"></i>
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${question}">Q: ${question}</span>
+                </div>
+                <i class="fas fa-chevron-up session-toggle-icon" style="color: #95a5a6;"></i>
+            `;
+
+            // Body (Logs container)
+            const body = document.createElement('div');
+            body.className = 'session-body';
+            body.style.cssText = "padding: 8px; display: flex; flex-direction: column; gap: 8px;";
+
+            // Toggle Logic
+            header.onclick = () => {
+                const icon = header.querySelector('.session-toggle-icon');
+                if (body.style.display === 'none') {
+                    body.style.display = 'flex';
+                    icon.className = 'fas fa-chevron-up session-toggle-icon';
+                } else {
+                    body.style.display = 'none';
+                    icon.className = 'fas fa-chevron-down session-toggle-icon';
+                }
+            };
+
+            sessionDiv.appendChild(header);
+            sessionDiv.appendChild(body);
+
+            // Prepend to top so user sees latest immediately without scrolling?
+            // Actually, chat logs usually append to bottom. Let's append to bottom.
+            container.appendChild(sessionDiv);
+
+            return body; // Return the container to append steps to
+        }
+
+        function appendLogToSidePanel(step, targetContainer = null) {
+            // If no target container provided, fallback to main content (legacy)
+            let container = targetContainer || document.getElementById('mcp-logs-content');
+
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'step-item';
+            // Custom card style for floating items - Semi-transparent
+            stepDiv.style.cssText = "margin-bottom:8px; animation: slideIn 0.3s ease-out; background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-radius: 8px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.2); border-left: 4px solid #3498db; font-size: 0.75rem;";
+
+            // Format content
+            let contentStr = step.content;
+            if (typeof contentStr === 'object') {
+                contentStr = JSON.stringify(contentStr, null, 2);
+            }
+
+            let color = '#3498db';
+            let icon = step.icon || 'fa-cog';
+
+            if (step.type === 'tool_call') {
+                color = '#e67e22'; // Orange for tools
+                icon = 'fa-tools';
+                stepDiv.style.borderLeftColor = color;
+            } else if (step.type === 'tool_result') {
+                color = '#27ae60'; // Green for results
+                icon = 'fa-check-circle';
+                stepDiv.style.borderLeftColor = color;
+            } else if (step.type === 'thought') {
+                color = '#9b59b6'; // Purple for thoughts
+                icon = 'fa-lightbulb';
+                stepDiv.style.borderLeftColor = color;
+            } else if (step.type === 'error') {
+                color = '#e74c3c'; // Red for errors
+                icon = 'fa-exclamation-triangle';
+                stepDiv.style.borderLeftColor = color;
+            }
+
+            stepDiv.innerHTML = `
+                <div style="font-weight:700; color:${color}; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                    <i class="fas ${icon}"></i> ${step.title || 'Step'}
+                </div>
+                <div style="font-family:'Consolas', monospace; color:#34495e; white-space:pre-wrap; max-height:100px; overflow-y:auto; font-size: 0.7rem; line-height: 1.3;">${contentStr}</div>
+            `;
+
+            container.appendChild(stepDiv);
+
+            // Auto-scroll parent panel
+            const panel = document.getElementById('mcp-logs-panel');
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        async function sendMCPMessage() {
+            const input = document.getElementById('mcp-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addChatMessage('user', message);
+            input.value = '';
+
+            // Create a system message container immediately
+            const msgId = addChatMessage('system', '<i class="fas fa-spinner fa-spin"></i> Initializing...');
+
+            // Create New Log Session (Group by question)
+            const logSessionBody = createLogSession(message);
+
+            try {
+                const response = await fetch('/api/mcp/chat/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let isFirstChunk = true;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop(); // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const jsonStr = line.substring(6);
+                            try {
+                                const data = JSON.parse(jsonStr);
+
+                                if (data.type === 'tool_call' || data.type === 'tool_result' || data.type === 'thought') {
+                                    // Update Loading Text
+                                    if (isFirstChunk) {
+                                        updateChatMessage(msgId, "Thinking... (See Logic Flow panel)");
+                                        isFirstChunk = false;
+                                    }
+
+                                    // Append to Side Panel (Targeted Session)
+                                    appendLogToSidePanel(data, logSessionBody);
+
+                                } else if (data.type === 'result') {
+                                    // Final result
+                                    updateChatMessage(msgId, data.response);
+
+                                    if (data.map_commands && Array.isArray(data.map_commands)) {
+                                        data.map_commands.forEach(cmd => handleMapCommand(cmd));
+                                    }
+                                } else if (data.type === 'error') {
+                                    updateChatMessage(msgId, `<span style="color:red">Error: ${data.content}</span>`);
+                                    appendLogToSidePanel({
+                                        type: 'error',
+                                        title: 'Error',
+                                        content: data.content,
+                                        icon: 'fa-exclamation-triangle'
+                                    }, logSessionBody);
+                                }
+                            } catch (e) {
+                                console.error("Stream Parse Error", e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (e) {
+                updateChatMessage(msgId, `<span style="color:red">Network Error: ${e.message}</span>`);
+            }
+        }
+
+        function updateChatMessage(msgId, html) {
+            const msgDiv = document.getElementById(msgId);
+            if (msgDiv) {
+                // Use class selector for robustness
+                const bubble = msgDiv.querySelector('.chat-bubble');
+
+                if (bubble) {
+                    // Find if thinking process exists
+                    const thinkingProcess = bubble.querySelector('.thinking-process');
+
+                    // Update text (everything before thinking process)
+                    if (thinkingProcess) {
+                        // Temporarily remove thinking process
+                        bubble.removeChild(thinkingProcess);
+                        // Update content (Markdown parse if needed)
+                        bubble.innerHTML = marked ? marked.parse(html) : html;
+                        // Append thinking process back
+                        bubble.appendChild(thinkingProcess);
+                    } else {
+                        bubble.innerHTML = marked ? marked.parse(html) : html;
+                    }
+                } else {
+                    // Fallback for legacy messages or structure mismatch
+                    const legacyBubble = msgDiv.querySelector('div > div:last-child');
+                    if (legacyBubble) legacyBubble.innerHTML = marked ? marked.parse(html) : html;
+                }
+            }
+        }
+
+        function addThinkingProcess(msgId, steps) {
+            const msgDiv = document.getElementById(msgId);
+            const contentDiv = msgDiv.querySelector('div > div:last-child'); // The message bubble
+
+            const container = document.createElement('div');
+            container.className = 'thinking-process';
+            container.id = 'thinking-' + msgId; // Unique ID
+
+            const header = document.createElement('div');
+            header.className = 'thinking-header';
+            header.innerHTML = `<span><i class="fas fa-brain"></i> Thinking Process <span class="step-count">(0)</span></span> <i class="fas fa-chevron-down"></i>`;
+            header.onclick = () => {
+                const body = container.querySelector('.thinking-body');
+                const icon = header.querySelector('.fa-chevron-down, .fa-chevron-up');
+                if (body.style.display === 'block') {
+                    body.style.display = 'none';
+                    icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+                } else {
+                    body.style.display = 'block';
+                    icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+                }
+            };
+
+            const body = document.createElement('div');
+            body.className = 'thinking-body';
+            // Auto-open if empty (start of stream)
+            if (steps.length === 0) {
+                body.style.display = 'block';
+                header.querySelector('.fa-chevron-down').classList.replace('fa-chevron-down', 'fa-chevron-up');
+            }
+
+            steps.forEach(step => {
+                renderStep(body, step);
+            });
+
+            container.appendChild(header);
+            container.appendChild(body);
+
+            contentDiv.appendChild(container);
+
+            return container.id;
+        }
+
+        function appendThinkingStep(containerId, step) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const body = container.querySelector('.thinking-body');
+            renderStep(body, step);
+
+            // Update count
+            const countSpan = container.querySelector('.step-count');
+            const currentCount = parseInt(countSpan.innerText.replace(/[()]/g, '')) || 0;
+            countSpan.innerText = `(${currentCount + 1})`;
+
+            // Auto scroll to bottom of thinking body
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function renderStep(container, step) {
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'step-item';
+
+            // Format content (if object, stringify)
+            let contentStr = step.content;
+            if (typeof contentStr === 'object') {
+                contentStr = JSON.stringify(contentStr, null, 2);
+            }
+
+            let color = '#3498db';
+            if (step.type === 'tool_result') color = '#27ae60';
+            if (step.type === 'thought') color = '#f39c12';
+            if (step.type === 'error') color = '#e74c3c';
+
+            stepDiv.innerHTML = `
+                <div class="step-title" style="color: ${color}">
+                    <i class="fas ${step.icon}"></i> ${step.title}
+                </div>
+                <div class="step-content">${contentStr}</div>
+            `;
+            container.appendChild(stepDiv);
+        }
+
+        function addChatMessage(role, text) {
+            const container = document.getElementById('mcp-chat-area');
+            const msgDiv = document.createElement('div');
+            // Use a more robust ID generation to prevent collisions
+            const id = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            msgDiv.id = id;
+            msgDiv.className = `chat-msg ${role}`;
+            msgDiv.style.marginBottom = '15px';
+
+            // Parse Markdown if system
+            let contentHtml = role === 'user' ? text : (marked ? marked.parse(text) : text);
+
+            if (role === 'user') {
+                msgDiv.innerHTML = `
+                    <div class="chat-flex" style="display:flex; gap:10px; justify-content:flex-end;">
+                        <div class="chat-bubble" style="background:rgba(52, 152, 219, 0.9); color:white; padding:10px 14px; border-radius:16px 16px 0 16px; max-width:85%; line-height:1.5; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                            ${contentHtml}
+                        </div>
+                        <div class="chat-icon-container" style="width:28px; height:28px; background:rgba(221, 221, 221, 0.8); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="fas fa-user" style="font-size:0.8rem;"></i></div>
+                    </div>
+                `;
+            } else {
+                msgDiv.innerHTML = `
+                    <div class="chat-flex" style="display:flex; gap:10px;">
+                        <div class="chat-icon-container" style="width:28px; height:28px; background:linear-gradient(135deg, #8e44ad, #9b59b6); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; flex-shrink:0;"><i class="fas fa-robot" style="font-size:0.8rem;"></i></div>
+                        <div class="chat-bubble" style="background:rgba(255,255,255,0.8); padding:10px 14px; border-radius:0 16px 16px 16px; max-width:90%; line-height:1.5; border:1px solid rgba(255,255,255,0.5); box-shadow:0 1px 2px rgba(0,0,0,0.05); color:#2c3e50;">
+                            ${contentHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        // --- Map Command Handler ---
+        function handleMapCommand(cmd) {
+            console.log("Processing Map Command:", cmd);
+            const type = cmd.type;
+            const data = cmd.data;
+
+            if (type === 'clear') {
+                mcpLayerGroup.clearLayers();
+                showToast("Map cleared by AI");
+            }
+            else if (type === 'marker') {
+                // Handle key variations (lat/lon vs latitude/longitude)
+                const lat = data.lat || data.latitude;
+                const lon = data.lon || data.longitude;
+                const title = data.title || 'Location';
+                const iconType = data.icon || 'pin'; // Default to pin
+
+                if (!lat || !lon) {
+                    console.error("Invalid marker coordinates:", data);
+                    return;
+                }
+
+                let icon;
+                if (iconType === 'truck') {
+                    // Professional Truck Icon
+                    icon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color: #2c3e50; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 3px 8px rgba(0,0,0,0.4); border: 2px solid white;">
+                                <i class="fas fa-truck" style="font-size: 16px;"></i>
+                               </div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18],
+                        popupAnchor: [0, -20]
+                    });
+                } else if (iconType === 'event') {
+                    // Traffic Event Icon
+                    icon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="color: #e74c3c; font-size: 32px; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.3));">
+                                <i class="fas fa-exclamation-triangle"></i>
+                               </div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
+                    });
+                } else {
+                    // Professional Pin Icon
+                    icon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="color: #e74c3c; font-size: 36px; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.3));">
+                                <i class="fas fa-map-marker-alt"></i>
+                               </div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 36],
+                        popupAnchor: [0, -36]
+                    });
+                }
+
+                const marker = L.marker([lat, lon], { icon: icon })
+                    .bindPopup(`<b>${title}</b><br>${data.snippet || ''}`)
+                    .addTo(mcpLayerGroup);
+
+                marker.openPopup();
+                map.setView([lat, lon], 14);
+            }
+            else if (type === 'route') {
+                // Handle Google Maps encoded polyline
+                let latlngs = [];
+
+                // Robust handling for path data
+                if (data.encoded_polyline) {
+                    latlngs = decodePolyline(data.encoded_polyline);
+                } else if (data.path) {
+                    if (typeof data.path === 'string') {
+                        // If path is a string, assume it's an encoded polyline
+                        latlngs = decodePolyline(data.path);
+                    } else if (Array.isArray(data.path)) {
+                        // If path is an array, assume it's [lat, lon] pairs
+                        latlngs = data.path;
+                    }
+                }
+
+                if (latlngs.length > 0) {
+                    const routeLine = L.polyline(latlngs, {
+                        color: data.color || '#3498db',
+                        weight: 5,
+                        opacity: 0.8,
+                        dashArray: '10, 10' // Dashed line for AI routes
+                    }).addTo(mcpLayerGroup);
+
+                    map.fitBounds(routeLine.getBounds().pad(0.1));
+
+                    // Add start/end markers if provided
+                    if (data.origin) {
+                        const label = data.origin_label || "Start";
+                        const marker = L.marker(latlngs[0], { title: label });
+                        marker.addTo(mcpLayerGroup);
+                        marker.bindTooltip(label, { permanent: true, direction: 'top', className: 'route-label' }).openTooltip();
+                    }
+                    if (data.destination) {
+                        const label = data.destination_label || "End";
+                        const marker = L.marker(latlngs[latlngs.length - 1], { title: label });
+                        marker.addTo(mcpLayerGroup);
+                        marker.bindTooltip(label, { permanent: true, direction: 'bottom', className: 'route-label' }).openTooltip();
+                    }
+                }
+            }
+        }
+
+        // Google Polyline Decoder
+        function decodePolyline(encoded) {
+            var points = [];
+            var index = 0, len = encoded.length;
+            var lat = 0, lng = 0;
+
+            while (index < len) {
+                var b, shift = 0, result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+
+                shift = 0;
+                result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+
+                // Leaflet expects [lat, lng]
+                points.push([lat / 1e5, lng / 1e5]);
+            }
+            return points;
+        }
+
+        // --- Start ---
+        window.onload = function () {
+            initMap();
+            // Populate realtime dropdown same as history
+            loadVehicleList().then(() => {
+                // Copy options to realtime select
+                const historySelect = document.getElementById('vehicle-select');
+                const realtimeSelect = document.getElementById('realtime-vehicle-select');
+                realtimeSelect.innerHTML = historySelect.innerHTML;
+            });
+
+            // Explicitly switch to realtime mode to initialize UI state (show widgets)
+            switchMode('realtime');
+
+            // Force map resize after a short delay to ensure container is ready
+            setTimeout(() => { map.invalidateSize(); }, 500);
+        };
+    </script>
+    <!-- Vehicle Detail Modal -->
+    <div id="vehicle-detail-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; width: 90%; height: 90%; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 5px 30px rgba(0,0,0,0.3);">
+            <!-- Header -->
+            <div
+                style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white;">
+                <div>
+                    <h2 id="vd-title" style="margin: 0; font-size: 1.5rem;">Vehicle Details</h2>
+                    <div id="vd-subtitle" style="font-size: 0.9rem; color: #bdc3c7; margin-top: 5px;">VIN: -- | License:
+                        --</div>
+                </div>
+                <button onclick="closeVehicleDetail()"
+                    style="background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+
+            <!-- Content -->
+            <div style="flex: 1; overflow-y: auto; padding: 20px; background: #f8f9fa;">
+                <!-- Grid Layout -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; height: 100%;">
+
+                    <!-- Left Column: Charts -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Speed Profile -->
+                        <div
+                            style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-height: 300px;">
+                            <h3 style="margin: 0 0 15px 0; color: #34495e;">Speed Profile (24h)</h3>
+                            <div style="position: relative; height: 250px;">
+                                <canvas id="chart-speed-profile"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Fuel Level -->
+                        <div
+                            style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-height: 250px;">
+                            <h3 style="margin: 0 0 15px 0; color: #34495e;">Fuel Level History</h3>
+                            <div style="position: relative; height: 200px;">
+                                <canvas id="chart-fuel-level"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Stats & Logs -->
+                    <div style="display: flex; flex-direction: column; gap: 20px; overflow: hidden;">
+                        <!-- Fuel Stats Card -->
+                        <div
+                            style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex-shrink: 0;">
+                            <h3 style="margin: 0 0 15px 0; color: #34495e;">Fuel Consumption</h3>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="font-size: 2.5rem; color: #27ae60;"><i class="fas fa-gas-pump"></i></div>
+                                <div>
+                                    <div style="font-size: 0.9rem; color: #7f8c8d;">Total Fuel Used</div>
+                                    <div id="vd-total-fuel"
+                                        style="font-size: 1.5rem; font-weight: bold; color: #2c3e50;">-- L</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fillups List -->
+                        <div
+                            style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 200px;">
+                            <h3 style="margin: 0 0 15px 0; color: #34495e; flex-shrink: 0;">Detected Fill-ups</h3>
+                            <div id="vd-fillups-list"
+                                style="font-size: 0.9rem; color: #7f8c8d; overflow-y: auto; flex: 1;">
+                                No fill-ups detected in this period.
+                            </div>
+                        </div>
+
+                        <!-- Driver History -->
+                        <div
+                            style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 200px;">
+                            <h3 style="margin: 0 0 15px 0; color: #34495e; flex-shrink: 0;">Driver History</h3>
+                            <div id="vd-driver-list" style="font-size: 0.9rem; overflow-y: auto; flex: 1;">
+                                <!-- Dynamic Content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Vehicle Detail Logic ---
+        let speedChart = null;
+        let fuelChart = null;
+
+        async function openVehicleDetail(deviceId) {
+            document.getElementById('vehicle-detail-modal').style.display = 'flex';
+            document.getElementById('vd-title').innerText = 'Loading...';
+
+            try {
+                const response = await fetch(`/api/vehicle/${deviceId}/details?days=1`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    closeVehicleDetail();
+                    return;
+                }
+
+                // Update Header
+                document.getElementById('vd-title').innerText = data.device.name;
+                document.getElementById('vd-subtitle').innerText = `VIN: ${data.device.vin || 'N/A'} | License: ${data.device.licensePlate || 'N/A'}`;
+
+                // Update Fuel Stats
+                document.getElementById('vd-total-fuel').innerText = data.fuel.total_used ? `${parseFloat(data.fuel.total_used).toFixed(1)} L` : 'N/A';
+
+                // Render Fillups
+                const fillupsContainer = document.getElementById('vd-fillups-list');
+                if (data.fuel.fillups && data.fuel.fillups.length > 0) {
+                    fillupsContainer.innerHTML = data.fuel.fillups.map(f => `
+                    <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+                        <span><i class="fas fa-calendar-alt"></i> ${new Date(f.time).toLocaleString()}</span>
+                        <span style="font-weight: bold; color: #27ae60;">+${f.volume ? parseFloat(f.volume).toFixed(1) : '?'} L</span>
+                    </div>
+                `).join('');
+                } else {
+                    fillupsContainer.innerHTML = '<div style="padding: 10px; color: #bdc3c7;">No recent fill-ups</div>';
+                }
+
+                // Render Drivers
+                const driverContainer = document.getElementById('vd-driver-list');
+                if (data.drivers && data.drivers.length > 0) {
+                    driverContainer.innerHTML = data.drivers.map(d => `
+                    <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                        <div style="font-weight: bold; color: #2c3e50;">${d.driver}</div>
+                        <div style="font-size: 0.8rem; color: #95a5a6;">${new Date(d.time).toLocaleString()} (${d.type})</div>
+                    </div>
+                `).join('');
+                } else {
+                    driverContainer.innerHTML = '<div style="padding: 10px; color: #bdc3c7;">No driver changes recorded</div>';
+                }
+
+                // Render Charts
+                renderDetailCharts(data.speed_profile, data.fuel.level_history);
+
+            } catch (e) {
+                console.error("Error loading vehicle details", e);
+                alert("Failed to load vehicle details.");
+                closeVehicleDetail();
+            }
+        }
+
+        function closeVehicleDetail() {
+            document.getElementById('vehicle-detail-modal').style.display = 'none';
+            if (speedChart) speedChart.destroy();
+            if (fuelChart) fuelChart.destroy();
+        }
+
+        function renderDetailCharts(speedData, fuelData) {
+            // Speed Chart
+            const speedCtx = document.getElementById('chart-speed-profile').getContext('2d');
+            if (speedChart) speedChart.destroy();
+
+            speedChart = new Chart(speedCtx, {
+                type: 'line',
+                data: {
+                    labels: speedData.map(d => new Date(d.time).toLocaleTimeString()),
+                    datasets: [{
+                        label: 'Speed (km/h)',
+                        data: speedData.map(d => d.speed),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    scales: {
+                        x: { display: false }, // Hide x labels for cleaner look
+                        y: { beginAtZero: true, title: { display: true, text: 'km/h' } }
+                    }
+                }
+            });
+
+            // Fuel Chart
+            const fuelCtx = document.getElementById('chart-fuel-level').getContext('2d');
+            if (fuelChart) fuelChart.destroy();
+
+            fuelChart = new Chart(fuelCtx, {
+                type: 'line',
+                data: {
+                    labels: fuelData.map(d => new Date(d.time).toLocaleTimeString()),
+                    datasets: [{
+                        label: 'Fuel Level (%)',
+                        data: fuelData.map(d => d.level),
+                        borderColor: '#2ecc71',
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: true,
+                        stepped: true // Fuel level often stays constant then drops
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    scales: {
+                        x: { display: false },
+                        y: { min: 0, max: 100, title: { display: true, text: '%' } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

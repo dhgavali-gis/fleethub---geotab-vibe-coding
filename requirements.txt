@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+mygeotab
+python-dotenv
+pandas
+duckdb
+googlemaps
+pydantic_ai
