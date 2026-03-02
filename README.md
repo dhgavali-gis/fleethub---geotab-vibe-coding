@@ -112,7 +112,13 @@ Once the server is running, full API documentation (Swagger UI) is available at:
 
 ## Architecture Diagram
 
-<img width="8192" height="2946" alt="Project Idea to Deployment-2026-03-02-225624" src="https://github.com/user-attachments/assets/e4e5ab95-06d9-4488-a3ec-cc78279e8323" />
+<img width="7255" height="4057" alt="Project Idea to Deployment-2026-03-02-230424" src="https://github.com/user-attachments/assets/e51e36c3-95df-4da8-b6c5-6d3f38c92a1c" />
+
+
+
+##
+<img width="2816" height="1536" alt="Gemini_Generated_Image_x10nx8x10nx8x10n" src="https://github.com/user-attachments/assets/17ee0068-a835-429e-b6ea-b7db847a9e4a" />
+
 
 ## 🛡️ License
 Proprietary / Demo Use Only.
