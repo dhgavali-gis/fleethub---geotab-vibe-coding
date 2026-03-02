@@ -110,7 +110,14 @@ demo_project_v2/
 Once the server is running, full API documentation (Swagger UI) is available at:
 `http://localhost:8000/docs`
 
+## Architecture Diagram
+
+<img width="8192" height="2946" alt="Project Idea to Deployment-2026-03-02-225624" src="https://github.com/user-attachments/assets/e4e5ab95-06d9-4488-a3ec-cc78279e8323" />
+
 ## 🛡️ License
 Proprietary / Demo Use Only.
+
+
+
 
 
