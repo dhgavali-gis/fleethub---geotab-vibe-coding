@@ -116,10 +116,6 @@ Once the server is running, full API documentation (Swagger UI) is available at:
 
 
 
-##
-<img width="2816" height="1536" alt="Gemini_Generated_Image_x10nx8x10nx8x10n" src="https://github.com/user-attachments/assets/17ee0068-a835-429e-b6ea-b7db847a9e4a" />
-
-
 ## 🛡️ License
 Proprietary / Demo Use Only.
 
